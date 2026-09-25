@@ -63,7 +63,7 @@ function makeContext(sheets, opts = {}) {
     },
     Session: { getScriptTimeZone: () => 'America/New_York' },
     HtmlService: { createHtmlOutputFromFile: () => ({ setTitle() { return this; } }) },
-    Utilities: { formatDate: d => d.toISOString().slice(0, 10).replace(/-/g, '/') },
+    Utilities: { sleep: () => {}, formatDate: d => d.toISOString().slice(0, 10).replace(/-/g, '/') },
   };
   vm.createContext(ctx);
   const dir = path.join(__dirname, '..', 'apps-script');
@@ -267,6 +267,7 @@ test('writeDrafts with Claude: fills columns + Gmail draft', () => {
   assert.strictEqual(get(2, 'Gmail Draft ID'), '');
   assert.strictEqual(get(2, 'Status'), 'Draft Ready');
   const sent = fetches[0].body.messages[0].content;
+  assert.ok(fetches[0].body.system.includes('Email body'), 'email gets the same personalization rules');
   assert.ok(sent.includes('Deloitte'), 'background passed to Claude');
   assert.ok(sent.includes('"applied_role": "Firmwide Strategy Analyst"'), 'applied role passed');
   assert.ok(/"shared": \[\s*"University of Pennsylvania"/.test(sent), 'shared keywords passed');

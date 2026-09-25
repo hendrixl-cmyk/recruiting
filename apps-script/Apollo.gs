@@ -170,13 +170,16 @@ function apolloEnrich_(apiKey, ids) {
 }
 
 function apolloPost_(apiKey, path, body) {
-  const resp = UrlFetchApp.fetch(APOLLO_BASE + path, {
+  const request = () => UrlFetchApp.fetch(APOLLO_BASE + path, {
     method: 'post',
     contentType: 'application/json',
     headers: { 'X-Api-Key': apiKey, 'Cache-Control': 'no-cache' },
     payload: JSON.stringify(body),
     muteHttpExceptions: true,
   });
+  let resp = request();
+  // Several keyword searches per company can trip Apollo's per-minute limit: wait once and retry.
+  if (resp.getResponseCode() === 429) { Utilities.sleep(20000); resp = request(); }
   const code = resp.getResponseCode();
   const text = resp.getContentText();
   if (code === 429) throw new Error('Apollo rate limit hit - wait a minute and run again.');

@@ -3,11 +3,11 @@
 A Google Apps Script add-on that lives inside your **Recruiting Tracker** Google Sheet. It looks at the **jobs you applied to**, finds people at those companies who **have things in common with you**, and hands you a ready-to-send message for each one: **open the link, copy, paste, go.**
 
 1. **Reads your applications** (`2027 Recruiting Tracker` tab). Every company you applied to becomes a target, unless all your applications there are Rejected. It works out job titles to search for from the roles you applied to (e.g. "Firmwide Strategy Analyst" → Strategy Analyst, Analyst, Associate).
-2. **Finds similar people** with Apollo.io. It runs one search per thing you share with people (Penn, Miami Beach, Consult for America, WUME, Pan Asian Dance Troupe; editable in Agent Settings) and ranks people by how many they match. Each person gets:
+2. **Finds similar people** with Apollo.io. It runs one search per thing you share with people (Penn, Delta Sigma Pi, Miami Beach, Consult for America, WUME, Penn Hype, Strictly Funk, Pan Asian Dance Troupe; editable in Agent Settings) and ranks people by how many they match. Each person gets:
    - their **LinkedIn profile link**
    - **Why Them**: what you share and which of your applications they're closest to
    - **About Them**: current role and past companies
-3. **Writes the messages** with Claude: a **LinkedIn connection note** (fits the 200/300-character limit), a longer **message for after they accept**, and optionally an **email** (saved to Gmail Drafts). The note leads with what you share and mentions the role you applied for. Tone matches the industry.
+3. **Writes the messages** with Claude: a **LinkedIn connection note** (fits the 200/300-character limit), a longer **message for after they accept**, and an **email** whenever Apollo finds a verified address (saved to your Gmail Drafts, addressed and signed, ready to send). Every message, email included, leads with what you share and mentions the role you applied for. Tone matches the industry.
 4. **LinkedIn queue**: a sidebar opens with every person: **Open profile → Copy note → paste → I sent it.** No separate approval step.
 5. **Tracks everything**: logs each LinkedIn/email touch into your **Networking 2027** tab, marks email replies, drafts follow-ups after 7 days, and keeps a **Referrals** tab.
 
@@ -36,7 +36,7 @@ Free LinkedIn accounts only get a few personalized connection notes per month. I
 1. **Recruiting Agent → Setup → Set up tabs.** This creates `Targets`, `Outreach Queue`, `Referrals`, `Agent Settings`. Your existing tabs are not changed. (If you set up an earlier version, delete the old `Targets`, `Outreach Queue` and `Agent Settings` tabs first so they get the new columns.)
 2. Google will ask for permission (Sheets, Gmail, external requests). The warning says "unverified app" because it's your own script: click **Advanced → Go to project**.
 3. **Setup → Set API keys.** Keys are stored privately in your Google account, not in the sheet.
-4. Check **Agent Settings**. It's pre-filled from your resume (Penn '28 PPE, Miami Beach, Pivot Tokyo, Consult for America, WUME, Pan Asian Dance Troupe). Edit **Similarity keywords** to change who ranks highest, and **Also draft emails** = No if you only want LinkedIn.
+4. Check **Agent Settings**. It's pre-filled from your resume (Penn '28 PPE, Miami Beach, Pivot Tokyo, Consult for America, WUME, Delta Sigma Pi, Penn Hype, Strictly Funk, Pan Asian Dance Troupe). Edit **Similarity keywords** to change who ranks highest, and **Also draft emails** = No if you only want LinkedIn.
 5. You don't need to fill in **Targets**. Step 1 fills it from your applications. You can uncheck **Active** on a company to skip it, tweak titles/locations, or add a company by hand.
 6. Optional: **Setup → Turn on daily inbox check** (runs every morning to catch email replies and draft follow-ups).
 
