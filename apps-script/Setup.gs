@@ -16,30 +16,18 @@ function setupTabs() {
     s.getRange('B:B').setWrap(true);
   }
 
-  // Targets
+  // Targets - filled automatically from your applications tab when you run step 1.
   let t = ss.getSheetByName(TABS.TARGETS);
   if (!t) {
     t = ss.insertSheet(TABS.TARGETS);
     t.getRange(1, 1, 1, TARGET_HEADERS.length).setValues([TARGET_HEADERS]).setFontWeight('bold');
-    const consultingTitles = 'Associate Consultant, Consultant, Senior Associate Consultant, Business Analyst, Associate';
-    const penn = 'University of Pennsylvania';
-    const examples = [
-      [true, 'McKinsey', 'mckinsey.com', 'Consulting', consultingTitles, 'New York', penn, 5, ''],
-      [true, 'BCG', 'bcg.com', 'Consulting', consultingTitles, 'New York', penn, 5, ''],
-      [true, 'Bain', 'bain.com', 'Consulting', consultingTitles, 'New York', penn, 5, ''],
-      [false, 'Oliver Wyman', 'oliverwyman.com', 'Consulting', consultingTitles, 'New York', penn, 3, ''],
-      [false, 'EY-Parthenon', 'parthenon.ey.com', 'Consulting', consultingTitles, 'New York', penn, 3, ''],
-      [false, 'L.E.K. Consulting', 'lek.com', 'Consulting', consultingTitles, 'New York', penn, 3, ''],
-      [false, 'Kearney', 'kearney.com', 'Consulting', consultingTitles, 'New York', penn, 3, ''],
-      [false, 'Universal Music Group', 'umusic.com', 'Music', 'Analyst, Associate, Coordinator, Manager', 'New York', penn, 3, ''],
-      [false, 'Spotify', 'spotify.com', 'Music', 'Analyst, Associate, Strategy, Marketing Manager', 'New York', penn, 3, ''],
-    ];
-    t.getRange(2, 1, examples.length, TARGET_HEADERS.length).setValues(examples);
-    t.getRange(2, 1, 200, 1).insertCheckboxes();
-    t.getRange(2, 4, 200, 1).setDataValidation(
+    const tcol = name => TARGET_HEADERS.indexOf(name) + 1;
+    t.getRange(2, tcol('Active'), 300, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+    t.getRange(2, tcol('Track'), 300, 1).setDataValidation(
       SpreadsheetApp.newDataValidation().requireValueInList(TRACK_OPTIONS, true).build());
     t.setFrozenRows(1);
-    t.setColumnWidth(5, 360);
+    t.setColumnWidth(tcol('Applied Roles'), 360);
+    t.setColumnWidth(tcol('Titles'), 300);
   }
 
   // Outreach Queue
@@ -54,9 +42,7 @@ function setupTabs() {
       SpreadsheetApp.newDataValidation().requireValueInList(STATUS_OPTIONS, true).build());
     q.getRange(2, col(Q.CHANNEL), 1000, 1).setDataValidation(
       SpreadsheetApp.newDataValidation().requireValueInList(CHANNEL_OPTIONS, true).build());
-    q.getRange(2, col(Q.PENN), 1000, 1).setDataValidation(
-      SpreadsheetApp.newDataValidation().requireValueInList(['Yes', 'Likely', 'No'], true).build());
-    [Q.BODY, Q.NOTE, Q.LI_DM, Q.ABOUT].forEach(n => { q.setColumnWidth(col(n), 380); q.getRange(2, col(n), 1000, 1).setWrap(true); });
+    [Q.BODY, Q.NOTE, Q.LI_DM, Q.ABOUT, Q.WHY, Q.APPLIED_ROLE].forEach(n => { q.setColumnWidth(col(n), 380); q.getRange(2, col(n), 1000, 1).setWrap(true); });
     q.setColumnWidth(col(Q.SUBJECT), 240);
     // Color the Status column so the review queue is easy to scan.
     const statusRange = q.getRange(2, col(Q.STATUS), 1000, 1);
@@ -78,7 +64,7 @@ function setupTabs() {
   if (!ss.getSheetByName(TABS.LOG)) {
     SpreadsheetApp.getUi().alert('Heads up: no "' + TABS.LOG + '" tab found. Sent outreach will not be logged there until it exists.');
   }
-  toast_('Tabs ready. Next: Setup > Set API keys, then fill in Agent Settings.');
+  toast_('Tabs ready. Next: Setup > Set API keys, check Agent Settings, then run step 1 - it reads your applications tab.');
 }
 
 function setApiKeys() {

@@ -1,6 +1,9 @@
 /**
  * Step 1: find people at your target companies with Apollo.io.
  *
+ * Finds people at the companies in Targets (filled from your applications by
+ * Sources.gs), ranked by how much they have in common with you.
+ *
  * How Apollo's API works:
  *   - People API Search (mixed_people/api_search) is free and costs no credits,
  *     but hides emails (and part of the last name on free plans).
@@ -20,44 +23,59 @@ function findContacts() {
   const settings = getSettings_();
   let enrichBudget = settingNumber_(settings, 'Max enrichments per run', 15);
   const defaultLocations = splitList_(settings['Default locations']);
+  const similarity = splitList_(settings['Similarity keywords']);
+  const draftEmails = String(settings['Also draft emails']).toLowerCase() !== 'no';
+  const problems = [];
+
+  // 1. Pull in any companies you've applied to since the last run.
+  let newTargets = 0;
+  try { newTargets = syncTargetsFromApplications_(apiKey, settings); }
+  catch (e) { problems.push(e.message); }
 
   const targets = openTable_(TABS.TARGETS);
   const queue = openTable_(TABS.QUEUE);
   const existing = buildExistingIndex_(queue);
-
   let added = 0;
-  const problems = [];
 
-  for (const target of targets.rows) {
-    if (target['Active'] !== true || !target['Company']) continue;
-    if (enrichBudget <= 0) break;
+  // 2. Companies you haven't sourced yet go first, then the least recently sourced.
+  const active = targets.rows
+    .filter(t => t['Active'] === true && t['Company'])
+    .sort((a, b) => lastRunTime_(a) - lastRunTime_(b));
+
+  for (const target of active) {
+    if (enrichBudget <= 0) { problems.push('Hit "Max enrichments per run" - run again later for the remaining companies.'); break; }
     if (Date.now() - started > 4.5 * 60 * 1000) { problems.push('Stopped early to stay under the 6-minute limit - run again to continue.'); break; }
 
     const company = String(target['Company']).trim();
     const want = Math.min(parseInt(target['# Contacts'], 10) || 3, enrichBudget);
     try {
-      const candidates = searchTarget_(apiKey, target, defaultLocations, existing, want);
-      if (!candidates.length) { problems.push(company + ': no new people found (try broader titles/locations).'); continue; }
+      const keywords = similarity.concat(splitList_(target['Keywords']));
+      const candidates = searchTarget_(apiKey, target, defaultLocations, keywords, existing, want);
+      if (!candidates.length) { problems.push(company + ': no new people found (try broader Titles/Locations in Targets).'); targets.set(target, 'Last Run', new Date()); continue; }
 
       const people = apolloEnrich_(apiKey, candidates.map(c => c.id));
       enrichBudget -= candidates.length;
 
       people.forEach((p, i) => {
         if (!p) return;
+        const c = candidates[i];
         const name = p.name || [p.first_name, p.last_name].filter(Boolean).join(' ');
         if (isExisting_(existing, { id: p.id, name: name, company: company, email: p.email, linkedin: p.linkedin_url })) return;
+        const title = p.title || c.title || '';
+        const appliedRole = matchAppliedRole_(title, target['Applied Roles']);
         const row = {};
         row[Q.STATUS] = STATUS.NEW;
-        row[Q.CHANNEL] = pickChannel_(p.email, p.email_status, p.linkedin_url);
+        row[Q.CHANNEL] = pickChannel_(p.email, p.email_status, p.linkedin_url, draftEmails);
         row[Q.NAME] = name;
-        row[Q.TITLE] = p.title || candidates[i].title || '';
+        row[Q.TITLE] = title;
         row[Q.COMPANY] = company;
+        row[Q.APPLIED_ROLE] = appliedRole;
+        row[Q.WHY] = whyThem_(c.matches, title, appliedRole);
         row[Q.LOCATION] = [p.city, p.state].filter(Boolean).join(', ');
         row[Q.LINKEDIN] = p.linkedin_url || linkedInSearchUrl_(name, company);
         row[Q.ABOUT] = summarizePerson_(p);
-        row[Q.EMAIL] = p.email || '';
+        row[Q.EMAIL] = draftEmails ? (p.email || '') : '';
         row[Q.EMAIL_STATUS] = p.email_status || (p.email ? '' : 'none found');
-        row[Q.PENN] = candidates[i].pennMatch ? 'Likely' : '';
         row[Q.TRACK] = target['Track'] || 'Other';
         row[Q.FOUND] = new Date();
         row[Q.APOLLO_ID] = p.id;
@@ -71,48 +89,69 @@ function findContacts() {
     }
   }
 
-  const msg = 'Added ' + added + ' new contact(s) to "' + TABS.QUEUE + '".' +
-    (added ? ' Review them, fix "Penn Alum?" (Yes/No) if you know, then run step 2.' : '') +
+  const msg = (newTargets ? 'Added ' + newTargets + ' compan' + (newTargets === 1 ? 'y' : 'ies') + ' from your applications to Targets.\n' : '') +
+    'Found ' + added + ' new people to connect with in "' + TABS.QUEUE + '".' +
+    (added ? ' Next: step 2 writes their messages.' : '') +
     (problems.length ? '\n\nNotes:\n- ' + problems.join('\n- ') : '');
   SpreadsheetApp.getUi().alert(msg);
 }
 
+function lastRunTime_(t) {
+  return t['Last Run'] instanceof Date ? t['Last Run'].getTime() : 0;
+}
+
 /**
- * Searches one target company. Penn alumni first (if Keywords is set), then
- * everyone else matching the titles, until we have `want` new people.
+ * Searches one company. Runs one free Apollo search per similarity keyword
+ * (e.g. "University of Pennsylvania") plus one plain search, then ranks people
+ * by how many keywords they matched. Returns the top `want` new people.
  */
-function searchTarget_(apiKey, target, defaultLocations, existing, want) {
+function searchTarget_(apiKey, target, defaultLocations, keywords, existing, want) {
   const company = String(target['Company']).trim();
+  const locations = splitList_(target['Locations']);
   const base = {
     person_titles: splitList_(target['Titles']),
-    person_locations: splitList_(target['Locations']).length ? splitList_(target['Locations']) : defaultLocations,
+    person_locations: locations.length ? locations : defaultLocations,
     per_page: 50,
     page: 1,
   };
+  const orgId = String(target['Apollo Org ID'] || '').trim();
   const domain = String(target['Domain'] || '').trim();
-  if (domain) base.q_organization_domains_list = [domain];
-  else base.q_keywords = company;
+  let companyKeyword = '';
+  if (orgId) base.organization_ids = [orgId];
+  else if (domain) base.q_organization_domains_list = [domain];
+  else companyKeyword = company;
 
-  const passes = [];
-  const keywords = String(target['Keywords'] || '').trim();
-  if (keywords) passes.push({ pennMatch: true, body: Object.assign({}, base, { q_keywords: [base.q_keywords, keywords].filter(Boolean).join(' ') }) });
-  passes.push({ pennMatch: false, body: base });
+  const passes = keywords.map(k => ({ keyword: k, body: Object.assign({}, base, { q_keywords: [companyKeyword, k].filter(Boolean).join(' ') }) }));
+  passes.push({ keyword: '', body: companyKeyword ? Object.assign({}, base, { q_keywords: companyKeyword }) : base });
 
-  const picked = [];
-  const seen = {};
-  for (const pass of passes) {
-    if (picked.length >= want) break;
+  const byId = {};
+  const order = [];
+  passes.forEach(pass => {
     const res = apolloPost_(apiKey, 'mixed_people/api_search', pass.body);
-    for (const p of (res.people || [])) {
-      if (picked.length >= want) break;
-      if (seen[p.id]) continue;
-      seen[p.id] = true;
-      const last = p.last_name || p.last_name_obfuscated || '';
-      if (isExisting_(existing, { id: p.id, first: p.first_name, lastInitial: last.charAt(0), company: company })) continue;
-      picked.push({ id: p.id, title: p.title, pennMatch: pass.pennMatch });
-    }
-  }
-  return picked;
+    (res.people || []).forEach(p => {
+      if (!byId[p.id]) {
+        const last = p.last_name || p.last_name_obfuscated || '';
+        if (isExisting_(existing, { id: p.id, first: p.first_name, lastInitial: last.charAt(0), company: company })) return;
+        byId[p.id] = { id: p.id, title: p.title, matches: [], rank: order.length };
+        order.push(p.id);
+      }
+      if (pass.keyword && byId[p.id].matches.indexOf(pass.keyword) === -1) byId[p.id].matches.push(pass.keyword);
+    });
+  });
+  return rankCandidates_(order.map(id => byId[id])).slice(0, want);
+}
+
+/** Most shared keywords first; ties keep Apollo's order. Pure function (unit-tested). */
+function rankCandidates_(candidates) {
+  return candidates.slice().sort((a, b) => (b.matches.length - a.matches.length) || (a.rank - b.rank));
+}
+
+function whyThem_(matches, title, appliedRole) {
+  const parts = [];
+  if (matches.length) parts.push('Shared: ' + matches.join(', ') + ' (check their profile)');
+  if (appliedRole) parts.push('Works near the role you applied for: ' + appliedRole);
+  else if (title) parts.push('Role: ' + title);
+  return parts.join('. ');
 }
 
 /** Enriches Apollo person IDs 10 at a time. Returns people in the same order (null if not matched). */

@@ -65,11 +65,15 @@ function openLinkedInQueue() {
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-/** Called by the sidebar. Approved (or already emailed) contacts whose LinkedIn step isn't done. */
+/**
+ * Called by the sidebar. Everyone with a written LinkedIn note whose LinkedIn
+ * step isn't done - no separate approval needed: clicking "I sent it" is the approval.
+ */
 function getLinkedInQueue() {
   const queue = openTable_(TABS.QUEUE);
+  const ready = [STATUS.DRAFT_READY, STATUS.APPROVED, STATUS.SENT];
   return queue.rows
-    .filter(r => (r[Q.STATUS] === STATUS.APPROVED || r[Q.STATUS] === STATUS.SENT) &&
+    .filter(r => ready.indexOf(r[Q.STATUS]) !== -1 && r[Q.NOTE] &&
                  channelHasLinkedIn_(r[Q.CHANNEL]) && !r[Q.LI_SENT] && r[Q.NAME])
     .map(r => ({
       row: r._row,
@@ -77,6 +81,8 @@ function getLinkedInQueue() {
       title: String(r[Q.TITLE] || ''),
       company: String(r[Q.COMPANY] || ''),
       about: String(r[Q.ABOUT] || ''),
+      why: String(r[Q.WHY] || ''),
+      appliedRole: String(r[Q.APPLIED_ROLE] || ''),
       url: String(r[Q.LINKEDIN] || linkedInSearchUrl_(r[Q.NAME], r[Q.COMPANY])),
       note: String(r[Q.NOTE] || ''),
       message: String(r[Q.LI_DM] || ''),

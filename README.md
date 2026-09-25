@@ -1,14 +1,17 @@
 # Recruiting Agent (networking)
 
-A Google Apps Script add-on that lives inside your **Recruiting Tracker** Google Sheet and:
+A Google Apps Script add-on that lives inside your **Recruiting Tracker** Google Sheet. It looks at the **jobs you applied to**, finds people at those companies who **have things in common with you**, and hands you a ready-to-send message for each one: **open the link, copy, paste, go.**
 
-1. **Finds people** at your target companies (Penn alumni first) with Apollo.io, including their **LinkedIn profile, email, and a short "About Them" background** (current role, past companies).
-2. **Drafts outreach** for each person with Claude: a cold **email**, a **LinkedIn connection note** (fits the 200/300-character limit), and a longer **LinkedIn message** for after they accept. Tone adjusts by industry (formal for consulting/finance, warmer for music/consumer).
-3. **Puts emails in your Gmail Drafts** and waits for your approval. Nothing is sent without you.
-4. **LinkedIn queue**: a sidebar with each approved person's profile link, their background, and copy buttons for the note and message.
-5. **Tracks everything**: marks emails Sent/Replied from your inbox, drafts follow-ups after 7 days with no reply, logs every touch into your existing **Networking 2027** tab, and keeps a **Referrals** tab.
+1. **Reads your applications** (`2027 Recruiting Tracker` tab). Every company you applied to becomes a target, unless all your applications there are Rejected. It works out job titles to search for from the roles you applied to (e.g. "Firmwide Strategy Analyst" → Strategy Analyst, Analyst, Associate).
+2. **Finds similar people** with Apollo.io. It runs one search per thing you share with people (Penn, Miami Beach, Consult for America, WUME, Pan Asian Dance Troupe; editable in Agent Settings) and ranks people by how many they match. Each person gets:
+   - their **LinkedIn profile link**
+   - **Why Them**: what you share and which of your applications they're closest to
+   - **About Them**: current role and past companies
+3. **Writes the messages** with Claude: a **LinkedIn connection note** (fits the 200/300-character limit), a longer **message for after they accept**, and optionally an **email** (saved to Gmail Drafts). The note leads with what you share and mentions the role you applied for. Tone matches the industry.
+4. **LinkedIn queue**: a sidebar opens with every person: **Open profile → Copy note → paste → I sent it.** No separate approval step.
+5. **Tracks everything**: logs each LinkedIn/email touch into your **Networking 2027** tab, marks email replies, drafts follow-ups after 7 days, and keeps a **Referrals** tab.
 
-It skips anyone already in Networking 2027 / Networking 2026 / the queue, so you don't email the same person twice or waste Apollo credits.
+Your networking tabs are **not** used to find people. They're only checked so the agent never suggests someone you've already reached out to (and doesn't spend Apollo credits on them).
 
 ## Why LinkedIn is "one click" and not fully automatic
 
@@ -19,34 +22,35 @@ Free LinkedIn accounts only get a few personalized connection notes per month. I
 ## Setup (about 10 minutes, one time)
 
 ### 1. Get API keys
-- **Apollo.io**: sign up (free) → Settings → Integrations → API → create a key. If Apollo says your plan can't use an endpoint, the error message will show up in the sheet. Searching people is free; each person the agent adds costs **1 credit** (that's how it gets the email and full name).
+- **Apollo.io**: sign up (free) → Settings → Integrations → API → create a key. If Apollo says your plan can't use an endpoint, the error message will show up in the sheet. Searching people is free; each person the agent adds costs **1 credit** (that's how it gets the full name, LinkedIn and email). Looking up each new company once may also use a credit.
 - **Anthropic** (optional but recommended): [console.anthropic.com](https://console.anthropic.com) → API Keys. Add $5 of credit; each person costs roughly a few cents to draft. Without a key the agent uses a basic template.
 
 ### 2. Paste the code into your sheet
 1. Open **Recruiting Tracker** → **Extensions → Apps Script**.
-2. For each `.gs` file in [`apps-script/`](apps-script/) (`Config`, `Menu`, `Setup`, `Apollo`, `Drafts`, `Outreach`): click **+ → Script**, name it the same (without `.gs`), and paste the contents. Delete the default `Code.gs` if it's empty.
+2. For each `.gs` file in [`apps-script/`](apps-script/) (`Config`, `Menu`, `Setup`, `Sources`, `Apollo`, `Drafts`, `Outreach`): click **+ → Script**, name it the same (without `.gs`), and paste the contents. Delete the default `Code.gs` if it's empty.
 3. Click **+ → HTML**, name it `LinkedInQueue`, and paste [`apps-script/LinkedInQueue.html`](apps-script/LinkedInQueue.html).
 4. Optional: Project Settings → check "Show appsscript.json", then paste [`apps-script/appsscript.json`](apps-script/appsscript.json) (sets the time zone to New York).
 5. Save, then reload the sheet. A **Recruiting Agent** menu appears.
 
 ### 3. First run
-1. **Recruiting Agent → Setup → Set up tabs.** This creates `Targets`, `Outreach Queue`, `Referrals`, `Agent Settings`. Your existing tabs are not changed.
+1. **Recruiting Agent → Setup → Set up tabs.** This creates `Targets`, `Outreach Queue`, `Referrals`, `Agent Settings`. Your existing tabs are not changed. (If you set up an earlier version, delete the old `Targets`, `Outreach Queue` and `Agent Settings` tabs first so they get the new columns.)
 2. Google will ask for permission (Sheets, Gmail, external requests). The warning says "unverified app" because it's your own script: click **Advanced → Go to project**.
 3. **Setup → Set API keys.** Keys are stored privately in your Google account, not in the sheet.
-4. Fill in **Agent Settings**, especially *School & year*, *About me*, and *Email signature*. The more specific *About me* is, the better the drafts.
-5. Edit **Targets**: check **Active** for the companies you want, adjust titles, locations, and how many contacts per company. MBB are pre-filled.
-6. Optional: **Setup → Turn on daily inbox check** (runs every morning to catch replies and draft follow-ups).
+4. Check **Agent Settings**. It's pre-filled from your resume (Penn '28 PPE, Miami Beach, Pivot Tokyo, Consult for America, WUME, Pan Asian Dance Troupe). Edit **Similarity keywords** to change who ranks highest, and **Also draft emails** = No if you only want LinkedIn.
+5. You don't need to fill in **Targets**. Step 1 fills it from your applications. You can uncheck **Active** on a company to skip it, tweak titles/locations, or add a company by hand.
+6. Optional: **Setup → Turn on daily inbox check** (runs every morning to catch email replies and draft follow-ups).
 
 ## Daily workflow
 
 | Step | Menu item | What happens |
 |---|---|---|
-| 1 | **Find contacts** | New people appear in `Outreach Queue` with Status **New**, LinkedIn link, and About Them. Set **Penn Alum?** to Yes/No if you can tell (only "Yes" lets the draft mention Penn). |
-| 2 | **Write drafts** | Email, LinkedIn note, and LinkedIn message filled in; email saved to Gmail Drafts; Status → **Draft Ready**. |
-| — | *You review* | Edit anything. Set Status to **Approved** or **Skip**. Change **Channel** (Email / LinkedIn / Both) if you want. |
-| 3 | **Send approved emails** | Sends the Gmail drafts for Approved rows (asks you to confirm first) and logs them. You can also just hit Send in Gmail; the inbox check will notice. |
-| 4 | **Open LinkedIn queue** | Sidebar with each approved person: open profile, copy note, copy message, **I sent it**. |
-| — | **Check inbox now** | Marks Sent/Replied, creates follow-up drafts in the same Gmail thread after 7 days. For LinkedIn replies, set Status to **Replied** yourself. |
+| 1 | **Find people at companies I applied to** | Adds any new companies from your applications to Targets, then adds the best-matching people to `Outreach Queue` (link, Why Them, About Them). |
+| 2 | **Write messages** | Writes the LinkedIn note, the after-accept message, and the email (if any), then **opens the LinkedIn queue**. |
+| 4 | **LinkedIn queue** | For each person: **Open profile → Connect → Add a note → paste → I sent it.** Check the "shared" item on their profile first, since it comes from a keyword match. When they accept, copy the longer message into a DM. |
+| 3 | **Send approved emails** | Optional. Emails sit in Gmail Drafts: send from Gmail, or set Status to **Approved** and use this. |
+| — | **Check inbox now** | Marks email Sent/Replied, drafts follow-ups after 7 days. For LinkedIn replies, set Status to **Replied** yourself; it updates Networking 2027. |
+
+Every time you apply somewhere new, add it to your applications tab as usual. The next step 1 picks it up.
 
 Other menu items:
 - **Rebuild Gmail draft for selected row(s)**: if you edited the email in the sheet, this pushes the edit to Gmail.

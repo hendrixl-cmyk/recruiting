@@ -4,10 +4,10 @@
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Recruiting Agent')
-    .addItem('1. Find contacts (Apollo)', 'findContacts')
-    .addItem('2. Write drafts (Claude + Gmail)', 'writeDrafts')
+    .addItem('1. Find people at companies I applied to', 'findContacts')
+    .addItem('2. Write messages (opens LinkedIn queue)', 'writeDrafts')
     .addItem('3. Send approved emails', 'sendApproved')
-    .addItem('4. Open LinkedIn queue', 'openLinkedInQueue')
+    .addItem('4. Open LinkedIn queue (copy, paste, go)', 'openLinkedInQueue')
     .addSeparator()
     .addItem('Check inbox now (sent / replies / follow-ups)', 'syncInbox')
     .addItem('Rebuild Gmail draft for selected row(s)', 'rebuildSelectedDrafts')

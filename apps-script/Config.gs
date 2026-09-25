@@ -8,6 +8,7 @@ const TABS = {
   REFERRALS: 'Referrals',
   SETTINGS: 'Agent Settings',
   LOG: 'Networking 2027', // your existing tab - the agent only appends/updates rows here
+  // Your applications tab is set in Agent Settings ("Applications tab").
 };
 
 // Column names in the Outreach Queue. The code looks columns up by name,
@@ -18,12 +19,13 @@ const Q = {
   NAME: 'Name',
   TITLE: 'Title',
   COMPANY: 'Company',
+  APPLIED_ROLE: 'Applied Role',
+  WHY: 'Why Them',
   LOCATION: 'Location',
   ABOUT: 'About Them',
   LINKEDIN: 'LinkedIn URL',
   EMAIL: 'Email',
   EMAIL_STATUS: 'Email Status',
-  PENN: 'Penn Alum?',
   TRACK: 'Track',
   SUBJECT: 'Email Subject',
   BODY: 'Email Body',
@@ -40,8 +42,8 @@ const Q = {
 };
 
 const QUEUE_HEADERS = [
-  Q.STATUS, Q.CHANNEL, Q.NAME, Q.TITLE, Q.COMPANY, Q.LOCATION, Q.LINKEDIN, Q.ABOUT, Q.EMAIL,
-  Q.EMAIL_STATUS, Q.PENN, Q.TRACK, Q.SUBJECT, Q.BODY, Q.NOTE, Q.LI_DM, Q.DRAFT_ID, Q.FOUND,
+  Q.STATUS, Q.CHANNEL, Q.NAME, Q.TITLE, Q.COMPANY, Q.APPLIED_ROLE, Q.WHY, Q.LINKEDIN, Q.NOTE, Q.LI_DM, Q.ABOUT, Q.LOCATION, Q.EMAIL,
+  Q.EMAIL_STATUS, Q.TRACK, Q.SUBJECT, Q.BODY, Q.DRAFT_ID, Q.FOUND,
   Q.EMAIL_SENT, Q.LI_SENT, Q.FOLLOWUP, Q.REPLIED, Q.NOTES, Q.APOLLO_ID,
 ];
 
@@ -60,22 +62,27 @@ const STATUS_OPTIONS = [STATUS.NEW, STATUS.DRAFT_READY, STATUS.APPROVED, STATUS.
 const CHANNEL_OPTIONS = ['Email', 'LinkedIn', 'Both'];
 const TRACK_OPTIONS = ['Consulting', 'Music', 'Consumer', 'Finance', 'Tech', 'Other'];
 
-const TARGET_HEADERS = ['Active', 'Company', 'Domain', 'Track', 'Titles', 'Locations', 'Keywords', '# Contacts', 'Last Run'];
+const TARGET_HEADERS = ['Active', 'Company', 'Domain', 'Apollo Org ID', 'Track', 'Applied Roles', 'Titles', 'Locations', 'Keywords', '# Contacts', 'Source', 'Last Run'];
 const REFERRAL_HEADERS = ['Name', 'Company', 'Role / Job', 'Job Link', 'Date Asked', 'Status', 'Notes'];
 const REFERRAL_STATUS = ['To Ask', 'Asked', 'Agreed', 'Submitted', 'Declined'];
 
 const SETTINGS_DEFAULTS = [
   ['Your name', 'Hendrix Lee', 'Used in signatures.'],
-  ['School & year', 'University of Pennsylvania, Class of 20XX', 'Fill in your class year.'],
-  ['Major / focus', '', 'e.g. "Economics, pre-professional business track"'],
-  ['About me', '', '2-4 sentences the AI can pull from: experiences, clubs, what draws you to these industries. Be specific.'],
+  ['School & year', 'University of Pennsylvania, Class of 2028', ''],
+  ['Major / focus', 'Philosophy, Politics & Economics (Choice & Behavior), minor in Cinema & Media Studies', ''],
+  ['About me', 'From Miami Beach. Business development intern at Pivot Tokyo / AI Beyond Borders (sponsorship decks, investor outreach in Tokyo). Associate Consultant with Consult for America and on the consulting committee of Wharton Undergraduate Media & Entertainment. Artistic Director of Pan Asian Dance Troupe; into the music industry and GarageBand production.', 'Facts the AI can pull from. Keep it true and specific.'],
+  ['Similarity keywords', 'University of Pennsylvania, Miami Beach, Consult for America, Wharton Undergraduate Media, Pan Asian Dance Troupe', 'Things you share with people. Each one is a separate (free) Apollo search per company; people who match more of them rank higher. Keep to about 5.'],
   ['The ask', 'a 15-minute call to hear about their path and experience', 'What you are asking for in each message.'],
   ['Email signature', 'Best,\nHendrix Lee\nUniversity of Pennsylvania', 'Appended to every email.'],
-  ['Follow-up after (days)', '7', 'Days with no reply before a follow-up draft is created.'],
-  ['Max enrichments per run', '15', 'Each enrichment costs 1 Apollo credit (that is how you get the email + full name + LinkedIn).'],
+  ['Applications tab', '2027 Recruiting Tracker', 'Tab with your applications (needs COMPANY, ROLE / POSITION, LOCATION, APPLICATION STATUS columns).'],
+  ['Skip application statuses', 'Rejected', 'Comma-separated. Companies where every application has one of these statuses are skipped.'],
+  ['Contacts per company', '3', 'How many people to find per company you applied to.'],
+  ['Also draft emails', 'Yes', 'Yes = also write an email (Gmail draft) when Apollo finds a verified address. No = LinkedIn only.'],
+  ['Follow-up after (days)', '7', 'Days with no email reply before a follow-up draft is created.'],
+  ['Max enrichments per run', '15', 'Each enrichment costs 1 Apollo credit (that is how you get the full name, LinkedIn and email).'],
   ['LinkedIn note max characters', '200', 'Free LinkedIn accounts: 200. Premium: 300.'],
   ['Claude model', 'claude-opus-5', 'Model used to write drafts.'],
-  ['Default locations', 'New York', 'Used when a target row leaves Locations blank. Comma-separated.'],
+  ['Default locations', 'New York', 'Used when an application has no location. Comma-separated.'],
 ];
 
 // ---------- Secrets (stored per-user, never in the sheet) ----------
@@ -180,8 +187,8 @@ function channelHasLinkedIn_(channel) {
   return channel === 'LinkedIn' || channel === 'Both';
 }
 
-function pickChannel_(email, emailStatus, linkedinUrl) {
-  const goodEmail = email && emailStatus !== 'unavailable';
+function pickChannel_(email, emailStatus, linkedinUrl, draftEmails) {
+  const goodEmail = draftEmails !== false && email && emailStatus !== 'unavailable';
   if (goodEmail && linkedinUrl) return 'Both';
   if (goodEmail) return 'Email';
   return 'LinkedIn';

@@ -7,6 +7,7 @@
     .card { border: 1px solid #dadce0; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
     .name { font-weight: bold; font-size: 14px; }
     .sub { color: #5f6368; margin: 2px 0 6px; }
+    .why { background: #e8f0fe; border-radius: 4px; padding: 6px; margin: 6px 0; font-size: 12px; }
     .about { background: #f1f3f4; border-radius: 4px; padding: 6px; margin: 6px 0; font-size: 12px; }
     label { display: block; font-size: 11px; color: #5f6368; margin-top: 8px; }
     textarea { width: 100%; box-sizing: border-box; font: inherit; border: 1px solid #dadce0; border-radius: 4px; padding: 6px; }
@@ -22,8 +23,8 @@
 </head>
 <body>
   <div class="help">
-    For each person: open their profile, click <b>Connect → Add a note</b>, paste the note, send.
-    When they accept, paste the longer message into a DM. Then click <b>I sent it</b> so it's logged.
+    <b>1.</b> Open profile &nbsp; <b>2.</b> Connect → Add a note → paste &nbsp; <b>3.</b> Click <b>I sent it</b>.<br>
+    Quickly check the "shared" item on their profile before sending. When they accept, send the longer message as a DM.
   </div>
   <div id="list">Loading…</div>
 
@@ -38,7 +39,7 @@
       var list = document.getElementById('list');
       list.innerHTML = '';
       if (!items.length) {
-        list.innerHTML = '<div id="empty">Nothing waiting. Set a row\'s Status to "Approved" (Channel = LinkedIn or Both) to see it here.</div>';
+        list.innerHTML = '<div id="empty">Nothing waiting. Run step 1 (find people) and step 2 (write messages) first.</div>';
         return;
       }
       items.forEach(function (it) {
@@ -46,6 +47,7 @@
         card.className = 'card';
         card.innerHTML =
           '<div class="name"></div><div class="sub"></div>' +
+          (it.why ? '<div class="why"></div>' : '') +
           (it.about ? '<div class="about"></div>' : '') +
           '<div class="row"><a class="btn primary" target="_blank" rel="noopener">Open LinkedIn profile</a></div>' +
           '<label>Connection note</label><textarea rows="4" class="note"></textarea><div class="count"></div>' +
@@ -55,6 +57,7 @@
           '<div class="row"><button class="done sent">I sent it</button><button class="skip">Skip</button></div>';
         card.querySelector('.name').textContent = it.name;
         card.querySelector('.sub').textContent = [it.title, it.company].filter(Boolean).join(' @ ');
+        if (it.why) card.querySelector('.why').textContent = it.why;
         if (it.about) card.querySelector('.about').textContent = it.about;
         card.querySelector('a.btn').href = it.url;
         var note = card.querySelector('.note'), msg = card.querySelector('.msg'), count = card.querySelector('.count');

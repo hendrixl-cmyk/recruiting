@@ -34,12 +34,11 @@ function writeDrafts() {
 
   SpreadsheetApp.getUi().alert(
     'Wrote ' + written + ' draft(s)' + (useClaude ? '' : ' using the basic template (add an Anthropic key for personalized drafts)') + '.\n\n' +
-    'Emails are in your Gmail Drafts folder. To approve:\n' +
-    '  - send straight from Gmail, OR\n' +
-    '  - set Status to "Approved" here and run step 3.\n' +
-    'LinkedIn notes show up in step 4 once a row is Approved.' +
+    'LinkedIn: the queue opens next - open each profile, copy, paste, send.\n' +
+    'Email: drafts are in Gmail. Send from there, or set Status to "Approved" and run step 3.' +
     (remaining ? '\n\n' + remaining + ' contact(s) left - run step 2 again.' : '') +
     (problems.length ? '\n\nProblems:\n- ' + problems.join('\n- ') : ''));
+  if (written) openLinkedInQueue();
 }
 
 function claudeDraft_(settings, row) {
@@ -56,8 +55,10 @@ function claudeDraft_(settings, row) {
     '',
     'Rules:',
     '- Email body: 70-120 words, 2-3 short paragraphs. Start with "Hi <first name>,". Do not include a sign-off or signature; one is added automatically.',
-    '- Say who the student is in one line, give one specific reason for reaching out to THIS person (their role, team, office, or career path), then make the ask.',
-    '- Only mention a shared Penn connection if "penn_alum" is "Yes". Never claim a connection, mutual friend, or fact that is not in the input.',
+    '- Say who the student is in one line, give one specific reason for reaching out to THIS person, then make the ask.',
+    '- The best reason is something they share with the student (listed in "shared"), e.g. Penn, the same high school or hometown, the same club. Lead with it when present. These come from a keyword match and the student checks the profile before sending, so state them plainly but do not embellish.',
+    '- Mention that the student applied to the role in "applied_role" at their company (if given) as context for why they are reaching out. Do not ask for a referral in the first message.',
+    '- Never claim a connection, mutual friend, or fact that is not in the input.',
     '- Use "background" (their real career history) to pick the specific reason, e.g. a past employer, a switch into consulting, or time at the firm. Do not invent anything beyond the input.',
     '- Avoid filler: no "I hope this email finds you well", "I am reaching out because", "I would love to pick your brain", "passionate", or flattery. No em dashes.',
     '- Subject: under 8 words, specific, no clickbait.',
@@ -80,7 +81,8 @@ function claudeDraft_(settings, row) {
       company: row[Q.COMPANY],
       location: row[Q.LOCATION],
       background: row[Q.ABOUT] || '',
-      penn_alum: row[Q.PENN] || 'Unknown',
+      shared: sharedFromWhy_(row[Q.WHY]),
+      applied_role: row[Q.APPLIED_ROLE] || '',
       industry_track: row[Q.TRACK],
       extra_notes: row[Q.NOTES] || '',
     },
@@ -137,23 +139,27 @@ function parseClaudeDraft_(message) {
   return draft;
 }
 
+/** Pulls the shared keywords back out of the "Why Them" text. */
+function sharedFromWhy_(why) {
+  const m = String(why || '').match(/Shared: ([^(]+)/);
+  return m ? m[1].split(',').map(x => x.trim()).filter(Boolean) : [];
+}
+
 /** Fallback when there's no Anthropic key: simple, editable template. */
 function templateDraft_(settings, row) {
   const first = firstName_(row[Q.NAME]);
   const me = settings['Your name'];
-  const school = settings['School & year'];
+  const myFirst = me.split(' ')[0];
   const ask = settings['The ask'];
-  const penn = row[Q.PENN] === 'Yes' ? ' and a fellow Quaker' : '';
-  const formal = ['Consulting', 'Finance'].indexOf(row[Q.TRACK]) !== -1;
-  const why = formal
-    ? 'I am preparing for ' + row[Q.TRACK].toLowerCase() + ' recruiting and your experience as ' + (row[Q.TITLE] || 'part of the team') + ' at ' + row[Q.COMPANY] + ' stood out to me.'
-    : 'I have been following ' + row[Q.COMPANY] + ' and your path to ' + (row[Q.TITLE] || 'your role') + ' is exactly the kind of career I am hoping to build.';
+  const shared = sharedFromWhy_(row[Q.WHY]);
+  const role = row[Q.APPLIED_ROLE];
+  const tie = shared.length ? 'I saw we both have ' + shared[0] + ' in common' : 'I came across your profile';
+  const why = tie + (role ? ' and I recently applied to the ' + role + ' role at ' + row[Q.COMPANY] : ' while looking into ' + row[Q.COMPANY]) + '.';
   return {
-    subject: (row[Q.PENN] === 'Yes' ? 'Penn student' : 'Student') + ' interested in ' + row[Q.COMPANY],
-    email_body: 'Hi ' + first + ',\n\nMy name is ' + me + ', a student at ' + school + penn + '. ' + why +
+    subject: (shared.length ? shared[0] + ' - ' : '') + 'student interested in ' + row[Q.COMPANY],
+    email_body: 'Hi ' + first + ',\n\nMy name is ' + me + ', a student at ' + settings['School & year'] + '. ' + why +
       '\n\nWould you be open to ' + ask + '? I am happy to work around your schedule.',
-    linkedin_note: 'Hi ' + first + ', I\'m ' + me.split(' ')[0] + ', a Penn student' + (formal ? ' recruiting for ' + row[Q.TRACK].toLowerCase() : ' interested in ' + row[Q.COMPANY]) +
-      '. Would you be open to ' + ask + '? Thank you!',
+    linkedin_note: 'Hi ' + first + ', I\'m ' + myFirst + ', a Penn student. ' + why + ' Would love to connect!',
     linkedin_message: 'Hi ' + first + ', thanks for connecting! ' + why + ' Would you be open to ' + ask +
       '? Happy to work around your schedule.',
   };
