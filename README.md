@@ -67,3 +67,7 @@ node tests/run.js
 ## Next phases
 - Application autofill (browser-based, with you approving each submit)
 - Pulling coffee chats from Google Calendar into the log
+
+## Outreach Desk (dashboard, no Sheets setup needed)
+
+[`dashboard/outreach-desk.html`](dashboard/outreach-desk.html) is the source of the Outreach Desk page published on claude.ai. It reads the Recruiting Tracker live through the Google Drive connector (full workbook export, parsed in the browser), keeps people and their stages in the page's database, and flags firms you applied to that still need contacts. A daily Claude routine sources people for those firms and adds them.

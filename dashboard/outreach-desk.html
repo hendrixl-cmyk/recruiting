@@ -1,0 +1,461 @@
+<title>Outreach Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --ground: #F3F4F8;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F7;
+    --ink: #14213D;
+    --muted: #5B6478;
+    --line: #DCE0EA;
+    --accent: #1C3F8C;      /* Penn blue */
+    --accent-ink: #FFFFFF;
+    --penn-red: #A3182B;    /* shared-background chips */
+    --red-soft: #F8E7EA;
+    --ok: #1E7A4C;  --ok-soft: #E3F3EA;
+    --warn: #9A6200; --warn-soft: #FBF0DC;
+    --wait: #3D5A99; --wait-soft: #E6ECF8;
+    --off: #8A90A0; --off-soft: #EDEEF2;
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #0D1321; --surface: #151D2F; --surface-2: #1C263B; --ink: #E6EAF3; --muted: #9AA4BA; --line: #26314A;
+      --accent: #8FB0FF; --accent-ink: #0D1321; --penn-red: #FF8A96; --red-soft: #3A1D25;
+      --ok: #6FD39F; --ok-soft: #173327; --warn: #F2B85B; --warn-soft: #3A2C12; --wait: #9DB6F5; --wait-soft: #1E2A47; --off: #7F879A; --off-soft: #1F2636;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #0D1321; --surface: #151D2F; --surface-2: #1C263B; --ink: #E6EAF3; --muted: #9AA4BA; --line: #26314A;
+    --accent: #8FB0FF; --accent-ink: #0D1321; --penn-red: #FF8A96; --red-soft: #3A1D25;
+    --ok: #6FD39F; --ok-soft: #173327; --warn: #F2B85B; --warn-soft: #3A2C12; --wait: #9DB6F5; --wait-soft: #1E2A47; --off: #7F879A; --off-soft: #1F2636;
+  }
+
+  body { background: var(--ground); color: var(--ink); font: 15px/1.5 var(--body); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 28px; }
+  h1, h2 { font-family: var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.05; }
+  h2 { font-size: 20px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .lede { color: var(--muted); max-width: 62ch; margin: 6px 0 0; }
+  a { color: var(--accent); }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Pipeline */
+  .pipeline { display: grid; gap: 10px; }
+  .bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+  .bar span { display: block; height: 100%; transition: width .3s; }
+  .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .stage { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; text-align: left; cursor: pointer; display: grid; gap: 2px; }
+  .stage[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .stage b { font: 600 22px/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .stage small { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+  /* Filters */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .chip .n { font: 500 12px var(--mono); opacity: .75; }
+
+  /* Cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; align-items: start; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+  .card.is-skip { opacity: .55; }
+  .head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+  .name { font: 700 18px/1.2 var(--display); margin: 0; }
+  .role { color: var(--muted); font-size: 14px; margin: 2px 0 0; }
+  .pill { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .applied { font-size: 13px; background: var(--surface-2); border-radius: 8px; padding: 6px 10px; }
+  .applied span { color: var(--muted); }
+  .shared { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 12px; font-weight: 700; color: var(--penn-red); background: var(--red-soft); padding: 3px 8px; border-radius: 6px; }
+  .about { font-size: 14px; color: var(--muted); margin: 0; }
+  .open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 700; border-radius: 10px; padding: 10px 14px; }
+  .msg { display: grid; gap: 6px; }
+  .msg label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
+  .count { font: 500 12px var(--mono); letter-spacing: 0; text-transform: none; }
+  .count.over { color: var(--penn-red); }
+  textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--line); background: var(--ground); border-radius: 10px; padding: 10px; resize: vertical; line-height: 1.45; font-size: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 8px 12px; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.next { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+  details.after summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent); }
+  details.after[open] summary { margin-bottom: 8px; }
+  .foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 10px; }
+  .foot select { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+  .ref { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .mynotes { flex: 1 1 100%; border: 1px dashed var(--line); background: transparent; border-radius: 8px; padding: 7px 9px; font-size: 13px; }
+
+  /* Applications */
+  .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; padding: 20px; color: var(--muted); }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--ground); padding: 8px 14px; border-radius: 999px; font-weight: 600; font-size: 14px; }
+  .sync { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); align-items: center; }
+  .sync .live { display: inline-flex; align-items: center; gap: 6px; }
+  .sync .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--sync-dot, var(--off)); }
+  .sync button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+  .banner { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; }
+  .needs { color: var(--warn); background: var(--warn-soft); }
+  .has { color: var(--ok); background: var(--ok-soft); }
+  .sectionhead { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+  .sectionhead p { margin: 0; color: var(--muted); font-size: 14px; }
+  .toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); cursor: pointer; }
+  td .roles { display: grid; gap: 4px; }
+  td .roles div { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .yes { color: var(--ok); font-weight: 700; } .no { color: var(--muted); }
+  .how { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .how div { font-size: 14px; color: var(--muted); }
+  .how b { color: var(--ink); display: block; }
+  @media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Hendrix Lee · Penn '28 · Summer 2027 recruiting</div>
+    <h1>Outreach Desk</h1>
+    <p class="lede">People at the firms you applied to, matched on what you share. Open the profile, copy the note, paste, and mark it sent.</p>
+    <div class="sync" style="margin-top:10px">
+      <span class="live" id="syncState">Connecting to Recruiting Tracker…</span>
+      <span id="sourcing"></span>
+      <button id="refresh" type="button">Refresh from sheet</button>
+    </div>
+  </header>
+  <div class="banner" id="needsBanner" hidden></div>
+
+  <section class="pipeline" aria-label="Pipeline">
+    <div class="bar" id="bar"></div>
+    <div class="stages" id="stages"></div>
+  </section>
+
+  <section aria-label="People" style="display:grid;gap:14px">
+    <div class="filters" id="companies"></div>
+    <div class="grid" id="cards"><div class="empty">Loading your contacts…</div></div>
+  </section>
+
+  <section aria-label="How it works" class="how">
+    <div><b>1. Open profile</b>Connect → Add a note.</div>
+    <div><b>2. Copy note, paste, send</b>Check the red "shared" tag on their profile first; it comes from a search match.</div>
+    <div><b>3. When they accept</b>Copy the longer message into a DM.</div>
+    <div><b>4. Move them along</b>The green button moves each person to the next stage.</div>
+  </section>
+
+  <section style="display:grid;gap:12px" id="applications">
+    <div class="sectionhead">
+      <h2>Your applications</h2>
+      <label class="toggle"><input type="checkbox" id="hideRejected" checked> Hide rejected</label>
+    </div>
+    <p class="lede" style="margin:0">Straight from the "2027 Recruiting Tracker" tab. Add a row to your sheet and it shows up here; firms without people get sourced in the next daily run.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Company</th><th>Roles &amp; status</th><th>People</th></tr></thead>
+      <tbody id="apps"><tr><td colspan="3">Loading from your sheet…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <div class="sectionhead"><h2>Earlier outreach</h2><p>From your "Networking 2027" tab</p></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Name</th><th>Company</th><th>How</th><th>Date</th><th>Reached out</th><th>Replied</th><th>Notes</th></tr></thead>
+      <tbody id="past"><tr><td colspan="7">Loading from your sheet…</td></tr></tbody>
+    </table></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const STAGES = [
+  { key: "to_send",   label: "To send",        next: "I sent the request", color: "var(--warn)", soft: "var(--warn-soft)" },
+  { key: "requested", label: "Request sent",   next: "They accepted",      color: "var(--wait)", soft: "var(--wait-soft)" },
+  { key: "connected", label: "Connected",      next: "I sent the message", color: "var(--accent)", soft: "var(--wait-soft)" },
+  { key: "messaged",  label: "Messaged",       next: "They replied",       color: "var(--wait)", soft: "var(--wait-soft)" },
+  { key: "replied",   label: "Replied",        next: "Coffee chat booked", color: "var(--ok)", soft: "var(--ok-soft)" },
+  { key: "chat",      label: "Coffee chat",    next: null,                 color: "var(--ok)", soft: "var(--ok-soft)" },
+  { key: "skip",      label: "Skipped",        next: null,                 color: "var(--off)", soft: "var(--off-soft)" },
+];
+const STAGE = Object.fromEntries(STAGES.map((s, i) => [s.key, { ...s, i }]));
+const NOTE_LIMIT = 200;
+
+let db = null, contacts = [], apps = [];
+let filterCompany = "all", filterStage = "all";
+const $ = id => document.getElementById(id);
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 1600);
+}
+
+async function copyText(text, textarea) {
+  try { await navigator.clipboard.writeText(text); toast("Copied"); }
+  catch (e) { textarea.focus(); textarea.select(); try { document.execCommand("copy"); toast("Copied"); } catch (_) { toast("Text selected - copy it"); } }
+}
+
+async function save(id, patch) {
+  if (!db) return;
+  try { await db.collection("contacts").doc(id).update({ ...patch, updatedAt: new Date().toISOString() }); }
+  catch (e) { toast(e.code === "invalid_argument" ? "You can view but not edit this desk" : "Couldn't save - try again"); }
+}
+
+function renderPipeline() {
+  const counts = Object.fromEntries(STAGES.map(s => [s.key, 0]));
+  contacts.forEach(c => { counts[c.status in counts ? c.status : "to_send"]++; });
+  const total = contacts.length || 1;
+  $("bar").innerHTML = STAGES.filter(s => s.key !== "skip")
+    .map(s => `<span style="width:${counts[s.key] / total * 100}%;background:${s.color}" title="${s.label}: ${counts[s.key]}"></span>`).join("");
+  const refs = contacts.filter(c => c.referral).length;
+  const tiles = [{ key: "all", label: "Everyone", n: contacts.length, color: "var(--muted)" }]
+    .concat(STAGES.map(s => ({ key: s.key, label: s.label, n: counts[s.key], color: s.color })))
+    .concat([{ key: "referral", label: "Could refer", n: refs, color: "var(--penn-red)" }]);
+  $("stages").innerHTML = tiles.map(t =>
+    `<button class="stage" data-stage="${t.key}" aria-pressed="${filterStage === t.key}"><b>${t.n}</b><small><span class="dot" style="background:${t.color}"></span>${t.label}</small></button>`).join("");
+  $("stages").querySelectorAll(".stage").forEach(b => b.onclick = () => { filterStage = filterStage === b.dataset.stage ? "all" : b.dataset.stage; render(); });
+}
+
+function renderCompanies() {
+  const names = [...new Set(contacts.map(c => c.company))].sort();
+  const chips = [["all", "All firms", contacts.length]].concat(names.map(n => [n, n, contacts.filter(c => c.company === n).length]));
+  $("companies").innerHTML = chips.map(([k, label, n]) =>
+    `<button class="chip" data-co="${esc(k)}" aria-pressed="${filterCompany === k}">${esc(label)} <span class="n">${n}</span></button>`).join("");
+  $("companies").querySelectorAll(".chip").forEach(b => b.onclick = () => { filterCompany = b.dataset.co; render(); });
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch])); }
+
+function card(c) {
+  const st = STAGE[c.status] || STAGE.to_send;
+  const el = document.createElement("article");
+  el.className = "card" + (c.status === "skip" ? " is-skip" : "");
+  el.innerHTML = `
+    <div class="head">
+      <div><h3 class="name"></h3><p class="role"></p></div>
+      <span class="pill" style="color:${st.color};background:${st.soft}">${st.label}</span>
+    </div>
+    <div class="applied"><span>You applied:</span> <strong class="ar"></strong></div>
+    <div class="shared"></div>
+    <p class="about"></p>
+    <a class="open" target="_blank" rel="noopener">Open LinkedIn profile ↗</a>
+    <div class="msg">
+      <label for="note-${c.id}">Connection note <span class="count"></span></label>
+      <textarea id="note-${c.id}" rows="4"></textarea>
+      <div class="row"><button class="btn copy-note">Copy note</button></div>
+    </div>
+    <details class="after"${["connected", "messaged"].includes(c.status) ? " open" : ""}>
+      <summary>Message for after they accept</summary>
+      <div class="msg">
+        <textarea id="dm-${c.id}" rows="6" aria-label="Message for after they accept"></textarea>
+        <div class="row"><button class="btn copy-dm">Copy message</button></div>
+      </div>
+    </details>
+    <div class="foot">
+      <div class="row">
+        ${st.next ? `<button class="btn next">${st.next} →</button>` : ""}
+        <select aria-label="Stage">${STAGES.map(s => `<option value="${s.key}"${s.key === st.key ? " selected" : ""}>${s.label}</option>`).join("")}</select>
+      </div>
+      <label class="ref"><input type="checkbox" class="refbox"${c.referral ? " checked" : ""}> Could refer me</label>
+      <input class="mynotes" id="notes-${c.id}" placeholder="Your notes (e.g. chat on Tue, mentioned Firmwide Strategy team)">
+    </div>`;
+  el.querySelector(".name").textContent = c.name;
+  el.querySelector(".role").textContent = c.title && c.title !== c.company ? c.title : c.company;
+  el.querySelector(".ar").textContent = c.appliedRole || "—";
+  el.querySelector(".shared").innerHTML = (c.shared || []).map(s => `<span class="tag">Shared: ${esc(s)}</span>`).join("");
+  el.querySelector(".about").textContent = c.about || "";
+  el.querySelector(".open").href = c.linkedin;
+  const note = el.querySelector(`#note-${CSS.escape(c.id)}`), dm = el.querySelector(`#dm-${CSS.escape(c.id)}`), count = el.querySelector(".count");
+  const mynotes = el.querySelector(".mynotes");
+  note.value = c.note || ""; dm.value = c.message || ""; mynotes.value = c.myNotes || "";
+  const upd = () => { count.textContent = `${note.value.length} / ${NOTE_LIMIT}`; count.classList.toggle("over", note.value.length > NOTE_LIMIT); };
+  note.oninput = upd; upd();
+  note.onchange = () => save(c.id, { note: note.value });
+  dm.onchange = () => save(c.id, { message: dm.value });
+  mynotes.onchange = () => save(c.id, { myNotes: mynotes.value });
+  el.querySelector(".copy-note").onclick = () => copyText(note.value, note);
+  el.querySelector(".copy-dm").onclick = () => copyText(dm.value, dm);
+  const next = el.querySelector(".next");
+  if (next) next.onclick = () => { const n = STAGES[st.i + 1].key; save(c.id, { status: n }); toast("Moved to " + STAGE[n].label); };
+  el.querySelector("select").onchange = e => save(c.id, { status: e.target.value });
+  el.querySelector(".refbox").onchange = e => save(c.id, { referral: e.target.checked });
+  return el;
+}
+
+function renderCards() {
+  const list = contacts
+    .filter(c => filterCompany === "all" || c.company === filterCompany)
+    .filter(c => filterStage === "all" || (filterStage === "referral" ? c.referral : (c.status || "to_send") === filterStage))
+    .sort((a, b) => (STAGE[a.status]?.i ?? 0) - (STAGE[b.status]?.i ?? 0) || a.company.localeCompare(b.company) || a.name.localeCompare(b.name));
+  const box = $("cards");
+  // Keep whatever field the viewer is typing in when a live update arrives.
+  const active = document.activeElement;
+  if (active && box.contains(active) && (active.tagName === "TEXTAREA" || active.tagName === "INPUT")) return;
+  box.innerHTML = "";
+  if (!list.length) { box.innerHTML = `<div class="empty">No one here yet. Pick another stage or firm above.</div>`; return; }
+  list.forEach(c => box.appendChild(card(c)));
+}
+
+// ---------- Live data from the Google Sheet ----------
+const SHEET_ID = "1Sw2yWJbuTR5-EMgUymn1PZa5zkaCUgpP44TUMGs6kKY";
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+let sheetApps = null, pastOutreach = null, sheetUpdated = null, meta = {};
+
+const keyOf = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const isRejected = st => /reject/i.test(st || "");
+
+function readTab(wb, name, firstHeader) {
+  const ws = wb.Sheets[name];
+  if (!ws) return null;
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
+  const hi = rows.findIndex(r => r.some(c => String(c).trim().toUpperCase() === firstHeader));
+  if (hi < 0) return null;
+  const headers = rows[hi].map(h => String(h).trim());
+  return rows.slice(hi + 1)
+    .filter(r => String(r[0] || "").trim())
+    .map(r => Object.fromEntries(headers.map((h, i) => [h, String(r[i] ?? "").trim()])));
+}
+
+function loadWorkbook(payload) {
+  if (typeof XLSX === "undefined") throw new Error("The spreadsheet reader didn't load. Reload the page.");
+  const b64 = payload && (payload.content || payload.data);
+  if (!b64) throw new Error("Google Drive returned no file content.");
+  const wb = XLSX.read(b64, { type: "base64" });
+  sheetApps = (readTab(wb, "2027 Recruiting Tracker", "COMPANY") || []).map(r => ({
+    company: r["COMPANY"], role: r["ROLE / POSITION"], status: r["APPLICATION STATUS"] || "—",
+    applied: r["DATE APPLIED"], notes: r["NOTES"],
+  }));
+  pastOutreach = readTab(wb, "Networking 2027", "NAME") || [];
+}
+
+function companyGroups() {
+  const groups = new Map();
+  (sheetApps || []).forEach(a => {
+    const k = keyOf(a.company);
+    if (!groups.has(k)) groups.set(k, { company: a.company, apps: [] });
+    groups.get(k).apps.push(a);
+  });
+  return [...groups.values()].map(g => ({
+    ...g,
+    active: g.apps.some(a => !isRejected(a.status)),
+    people: contacts.filter(c => keyOf(c.company) === keyOf(g.company)).length,
+  }));
+}
+
+function statusPill(st) {
+  const tone = /interview|assessment|offer/i.test(st) ? ["var(--ok)", "var(--ok-soft)"]
+    : /closed|reject/i.test(st) ? ["var(--off)", "var(--off-soft)"] : ["var(--wait)", "var(--wait-soft)"];
+  return `<span class="pill" style="color:${tone[0]};background:${tone[1]}">${esc(st)}</span>`;
+}
+
+function renderApps() {
+  if (!sheetApps) return;
+  const hide = $("hideRejected").checked;
+  const groups = companyGroups().filter(g => !hide || g.active)
+    .sort((a, b) => (b.active - a.active) || (a.people - b.people) || a.company.localeCompare(b.company));
+  $("apps").innerHTML = groups.length ? groups.map(g => {
+    const apps = g.apps.filter(a => !hide || !isRejected(a.status));
+    const people = !g.active ? `<span class="no">—</span>`
+      : g.people ? `<span class="pill has">${g.people} people</span>` : `<span class="pill needs">Needs people</span>`;
+    return `<tr><td><strong>${esc(g.company)}</strong></td>
+      <td><div class="roles">${apps.map(a => `<div>${statusPill(a.status)} <span>${esc(a.role || "Role not named yet")}</span> <span class="no">${esc(a.applied)}</span></div>`).join("")}</div></td>
+      <td>${people}</td></tr>`;
+  }).join("") : `<tr><td colspan="3">No applications in the sheet yet.</td></tr>`;
+
+  const needs = companyGroups().filter(g => g.active && !g.people).map(g => g.company);
+  $("needsBanner").hidden = !needs.length;
+  $("needsBanner").textContent = needs.length
+    ? `${needs.length} firm${needs.length > 1 ? "s" : ""} you applied to still need people: ${needs.join(", ")}. The next daily run will add them.` : "";
+
+  $("past").innerHTML = pastOutreach.length ? pastOutreach.map(p => `<tr>
+      <td>${esc(p["NAME"])}</td><td>${esc(p["COMPANY"])}</td><td>${esc(p["FORM OF CONTACT"])}</td><td class="num">${esc(p["DATE"])}</td>
+      <td class="${/true/i.test(p["REACHED OUT?"]) ? "yes" : "no"}">${/true/i.test(p["REACHED OUT?"]) ? "Yes" : "No"}</td>
+      <td class="${/true/i.test(p["RESPONSE?"]) ? "yes" : "no"}">${/true/i.test(p["RESPONSE?"]) ? "Yes" : "No"}</td>
+      <td>${esc(p["NOTES"])}</td></tr>`).join("") : `<tr><td colspan="7">Nothing in Networking 2027 yet.</td></tr>`;
+}
+
+function setSync(text, tone) {
+  $("syncState").textContent = text;
+  $("syncState").style.setProperty("--sync-dot", tone === "ok" ? "var(--ok)" : tone === "bad" ? "var(--penn-red)" : "var(--warn)");
+}
+
+function ago(ts) {
+  const m = Math.round((Date.now() - ts) / 60000);
+  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`;
+}
+
+function renderSourcing() {
+  const last = meta.lastRun ? new Date(meta.lastRun) : null;
+  $("sourcing").textContent = last && !isNaN(last)
+    ? `People last added ${last.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · runs daily at 8am`
+    : "New people are added daily at 8am";
+}
+
+function driveError(e) {
+  const code = e && e.code;
+  const msg = {
+    needs_reauth: "Google Drive needs reconnecting: claude.ai Settings → Connectors.",
+    server_not_connected: "Add Google Drive in claude.ai Settings → Connectors to sync your sheet.",
+    selection_required: "Choose which Google Drive account to use when Claude asks.",
+    not_in_manifest: "Google Drive is turned off for this page. Allow it to sync your sheet.",
+    blocked_by_policy: "Your organization blocks Google Drive here.",
+    server_unavailable: "Google Drive didn't answer. Showing the last copy; try Refresh.",
+    tool_error: "Google Drive couldn't open the Recruiting Tracker.",
+  }[code] || (e && e.message) || "Couldn't read your sheet.";
+  setSync(msg, "bad");
+  if (["needs_reauth", "server_not_connected", "not_in_manifest", "blocked_by_policy"].includes(code)) {
+    sheetApps = null; pastOutreach = null;
+    $("apps").innerHTML = `<tr><td colspan="3">${esc(msg)}</td></tr>`;
+    $("past").innerHTML = `<tr><td colspan="7">${esc(msg)}</td></tr>`;
+    $("needsBanner").hidden = true;
+  }
+}
+
+async function startSheetSync() {
+  const mcp = await window.claude?.use?.("mcp");
+  if (!mcp) { setSync("Open this page in Claude to sync your sheet.", "bad"); return; }
+  const input = { fileId: SHEET_ID, exportMimeType: XLSX_TYPE };
+  mcp.watchTool("Google Drive", "download_file_content", input, ev => {
+    if (ev.type === "error") return driveError(ev.error);
+    try {
+      loadWorkbook(ev.result.payload);
+      sheetUpdated = ev.result.cache?.storedAt || Date.now();
+      setSync(`Synced with Recruiting Tracker · ${ago(sheetUpdated)}`, ev.result.cache?.revalidating ? "warn" : "ok");
+      renderApps();
+    } catch (err) { setSync(err.message, "bad"); }
+  }, { refetchInterval: 300000, cache: { staleTime: 60000 } });
+  $("refresh").onclick = async () => {
+    setSync("Refreshing from your sheet…", "warn");
+    try { await mcp.invalidate("Google Drive", "download_file_content", input); } catch (_) {}
+  };
+}
+
+function render() { renderPipeline(); renderCompanies(); renderCards(); renderApps(); }
+$("hideRejected").onchange = renderApps;
+setInterval(() => { if (sheetUpdated) $("syncState").textContent = `Synced with Recruiting Tracker · ${ago(sheetUpdated)}`; }, 60000);
+
+// Backup CDN for the spreadsheet reader.
+if (typeof XLSX === "undefined") {
+  const sc = document.createElement("script");
+  sc.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+  document.head.appendChild(sc);
+}
+
+startSheetSync();
+(async () => {
+  db = await window.claude?.use?.("db");
+  if (!db) { $("cards").innerHTML = `<div class="empty">Open this page in Claude to load your contacts.</div>`; return; }
+  db.collection("contacts").onSnapshot(s => { contacts = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
+    () => { $("cards").innerHTML = `<div class="empty">Contacts stopped syncing. Reload the page.</div>`; });
+  db.doc("meta/sourcing").onSnapshot(d => { meta = d.exists ? d.data() : {}; renderSourcing(); }, () => {});
+  renderSourcing();
+})();
+</script>
