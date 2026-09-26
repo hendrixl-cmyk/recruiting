@@ -77,6 +77,8 @@
   .applied { font-size: 13px; background: var(--surface-2); border-radius: 8px; padding: 6px 10px; }
   .applied span { color: var(--muted); }
   .shared { display: flex; flex-wrap: wrap; gap: 6px; }
+  .lvl { font-size: 12px; font-weight: 700; color: var(--ok); background: var(--ok-soft); padding: 3px 8px; border-radius: 6px; }
+  .lvl.senior { color: var(--muted); background: var(--surface-2); }
   .tag { font-size: 12px; font-weight: 700; color: var(--penn-red); background: var(--red-soft); padding: 3px 8px; border-radius: 6px; }
   .about { font-size: 14px; color: var(--muted); margin: 0; }
   .open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 700; border-radius: 10px; padding: 10px 14px; }
@@ -128,7 +130,7 @@
   <header>
     <div class="eyebrow">Hendrix Lee · Penn '28 · Summer 2027 recruiting</div>
     <h1>Outreach Desk</h1>
-    <p class="lede">People at the firms you applied to, matched on what you share. Open the profile, copy the note, paste, and mark it sent.</p>
+    <p class="lede">People at the firms you applied to, Penn alumni and recent grads first. Open the profile, copy the note, paste, and mark it sent.</p>
     <div class="sync" style="margin-top:10px">
       <span class="live" id="syncState">Connecting to Recruiting Tracker…</span>
       <span id="sourcing"></span>
@@ -143,6 +145,11 @@
   </section>
 
   <section aria-label="People" style="display:grid;gap:14px">
+    <div class="filters" id="quick">
+      <button class="chip" id="fPenn" aria-pressed="false">Penn only</button>
+      <button class="chip" id="fRecent" aria-pressed="false">Recent grads only</button>
+      <button class="chip" id="fInactive" aria-pressed="false">Show firms I'm not pursuing</button>
+    </div>
     <div class="filters" id="companies"></div>
     <div class="grid" id="cards"><div class="empty">Loading your contacts…</div></div>
   </section>
@@ -190,7 +197,7 @@ const STAGE = Object.fromEntries(STAGES.map((s, i) => [s.key, { ...s, i }]));
 const NOTE_LIMIT = 200;
 
 let db = null, contacts = [], apps = [];
-let filterCompany = "all", filterStage = "all";
+let filterCompany = "all", filterStage = "all", onlyPenn = false, onlyRecent = false, showInactive = false;
 const $ = id => document.getElementById(id);
 
 function toast(msg) {
@@ -209,14 +216,24 @@ async function save(id, patch) {
   catch (e) { toast(e.code === "invalid_argument" ? "You can view but not edit this desk" : "Couldn't save - try again"); }
 }
 
+function inactiveFirm(company) {
+  if (!sheetApps) return false;
+  const apps = sheetApps.filter(a => keyOf(a.company) === keyOf(company));
+  return apps.length > 0 && apps.every(a => /reject|closed/i.test(a.status || ""));
+}
+function visible() {
+  return contacts.filter(c => (showInactive || !inactiveFirm(c.company)) && (!onlyPenn || c.penn) && (!onlyRecent || c.level !== "senior"));
+}
+
 function renderPipeline() {
   const counts = Object.fromEntries(STAGES.map(s => [s.key, 0]));
-  contacts.forEach(c => { counts[c.status in counts ? c.status : "to_send"]++; });
-  const total = contacts.length || 1;
+  const vis = visible();
+  vis.forEach(c => { counts[c.status in counts ? c.status : "to_send"]++; });
+  const total = vis.length || 1;
   $("bar").innerHTML = STAGES.filter(s => s.key !== "skip")
     .map(s => `<span style="width:${counts[s.key] / total * 100}%;background:${s.color}" title="${s.label}: ${counts[s.key]}"></span>`).join("");
-  const refs = contacts.filter(c => c.referral).length;
-  const tiles = [{ key: "all", label: "Everyone", n: contacts.length, color: "var(--muted)" }]
+  const refs = vis.filter(c => c.referral).length;
+  const tiles = [{ key: "all", label: "Everyone", n: vis.length, color: "var(--muted)" }]
     .concat(STAGES.map(s => ({ key: s.key, label: s.label, n: counts[s.key], color: s.color })))
     .concat([{ key: "referral", label: "Could refer", n: refs, color: "var(--penn-red)" }]);
   $("stages").innerHTML = tiles.map(t =>
@@ -225,8 +242,10 @@ function renderPipeline() {
 }
 
 function renderCompanies() {
-  const names = [...new Set(contacts.map(c => c.company))].sort();
-  const chips = [["all", "All firms", contacts.length]].concat(names.map(n => [n, n, contacts.filter(c => c.company === n).length]));
+  const vis = visible();
+  const names = [...new Set(vis.map(c => c.company))].sort();
+  if (filterCompany !== "all" && !names.includes(filterCompany)) filterCompany = "all";
+  const chips = [["all", "All firms", vis.length]].concat(names.map(n => [n, n, vis.filter(c => c.company === n).length]));
   $("companies").innerHTML = chips.map(([k, label, n]) =>
     `<button class="chip" data-co="${esc(k)}" aria-pressed="${filterCompany === k}">${esc(label)} <span class="n">${n}</span></button>`).join("");
   $("companies").querySelectorAll(".chip").forEach(b => b.onclick = () => { filterCompany = b.dataset.co; render(); });
@@ -270,7 +289,7 @@ function card(c) {
   el.querySelector(".name").textContent = c.name;
   el.querySelector(".role").textContent = c.title && c.title !== c.company ? c.title : c.company;
   el.querySelector(".ar").textContent = c.appliedRole || "—";
-  el.querySelector(".shared").innerHTML = (c.shared || []).map(s => `<span class="tag">Shared: ${esc(s)}</span>`).join("");
+  el.querySelector(".shared").innerHTML = `<span class="lvl${c.level === "senior" ? " senior" : ""}">${c.level === "senior" ? "Senior" : "Recent grad"}</span>` + (c.shared || []).map(s => `<span class="tag">${/same role/i.test(s) ? esc(s) : "Shared: " + esc(s)}</span>`).join("");
   el.querySelector(".about").textContent = c.about || "";
   el.querySelector(".open").href = c.linkedin;
   const note = el.querySelector(`#note-${CSS.escape(c.id)}`), dm = el.querySelector(`#dm-${CSS.escape(c.id)}`), count = el.querySelector(".count");
@@ -291,10 +310,13 @@ function card(c) {
 }
 
 function renderCards() {
-  const list = contacts
+  const list = visible()
     .filter(c => filterCompany === "all" || c.company === filterCompany)
     .filter(c => filterStage === "all" || (filterStage === "referral" ? c.referral : (c.status || "to_send") === filterStage))
-    .sort((a, b) => (STAGE[a.status]?.i ?? 0) - (STAGE[b.status]?.i ?? 0) || a.company.localeCompare(b.company) || a.name.localeCompare(b.name));
+    .sort((a, b) => (STAGE[a.status]?.i ?? 0) - (STAGE[b.status]?.i ?? 0)
+      || (b.penn === true) - (a.penn === true)
+      || (a.level === "senior") - (b.level === "senior")
+      || a.company.localeCompare(b.company) || a.name.localeCompare(b.name));
   const box = $("cards");
   // Keep whatever field the viewer is typing in when a live update arrives.
   const active = document.activeElement;
@@ -429,7 +451,7 @@ async function startSheetSync() {
       loadWorkbook(ev.result.payload);
       sheetUpdated = ev.result.cache?.storedAt || Date.now();
       setSync(`Synced with Recruiting Tracker · ${ago(sheetUpdated)}`, ev.result.cache?.revalidating ? "warn" : "ok");
-      renderApps();
+      renderApps(); renderPipeline(); renderCompanies(); renderCards();
     } catch (err) { setSync(err.message, "bad"); }
   }, { refetchInterval: 300000, cache: { staleTime: 60000 } });
   $("refresh").onclick = async () => {
@@ -440,6 +462,8 @@ async function startSheetSync() {
 
 function render() { renderPipeline(); renderCompanies(); renderCards(); renderApps(); }
 $("hideRejected").onchange = renderApps;
+[["fPenn", () => onlyPenn = !onlyPenn, () => onlyPenn], ["fRecent", () => onlyRecent = !onlyRecent, () => onlyRecent], ["fInactive", () => showInactive = !showInactive, () => showInactive]]
+  .forEach(([id, flip, get]) => { $(id).onclick = () => { flip(); $(id).setAttribute("aria-pressed", String(get())); render(); }; });
 setInterval(() => { if (sheetUpdated) $("syncState").textContent = `Synced with Recruiting Tracker · ${ago(sheetUpdated)}`; }, 60000);
 
 // Backup CDN for the spreadsheet reader.
