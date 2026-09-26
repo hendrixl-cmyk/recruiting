@@ -157,7 +157,7 @@
   <section aria-label="How it works" class="how">
     <div><b>1. Open profile</b>Connect → Add a note.</div>
     <div><b>2. Copy note, paste, send</b>Check the red "shared" tag on their profile first; it comes from a search match.</div>
-    <div><b>3. When they accept</b>Copy the longer message into a DM.</div>
+    <div><b>3. When they accept</b>Copy the longer message into a DM. No reply in a week? Send the follow-up once.</div>
     <div><b>4. Move them along</b>The green button moves each person to the next stage.</div>
   </section>
 
@@ -278,6 +278,24 @@ function card(c) {
         <div class="row"><button class="btn copy-dm">Copy message</button></div>
       </div>
     </details>
+    <details class="after"${c.status === "requested" || c.status === "messaged" ? " open" : ""}>
+      <summary>Follow-up if there's no reply after a week</summary>
+      <div class="msg">
+        <textarea id="fu-${c.id}" rows="3" aria-label="Follow-up message"></textarea>
+        <div class="row"><button class="btn copy-fu">Copy follow-up</button></div>
+      </div>
+    </details>
+    <details class="after"${c.status === "replied" || c.status === "chat" ? " open" : ""}>
+      <summary>After your chat: thank-you and referral ask</summary>
+      <div class="msg">
+        <label for="ty-${c.id}">Thank-you (fill in the brackets with what you actually talked about)</label>
+        <textarea id="ty-${c.id}" rows="4"></textarea>
+        <div class="row"><button class="btn copy-ty">Copy thank-you</button></div>
+        <label for="rf-${c.id}">Referral ask (only after a good conversation, for a specific role)</label>
+        <textarea id="rf-${c.id}" rows="5"></textarea>
+        <div class="row"><button class="btn copy-rf">Copy referral ask</button></div>
+      </div>
+    </details>
     <div class="foot">
       <div class="row">
         ${st.next ? `<button class="btn next">${st.next} →</button>` : ""}
@@ -295,6 +313,17 @@ function card(c) {
   const note = el.querySelector(`#note-${CSS.escape(c.id)}`), dm = el.querySelector(`#dm-${CSS.escape(c.id)}`), count = el.querySelector(".count");
   const mynotes = el.querySelector(".mynotes");
   note.value = c.note || ""; dm.value = c.message || ""; mynotes.value = c.myNotes || "";
+  const first = String(c.name || "").replace(/\(.*?\)/g, "").trim().split(/\s+/)[0];
+  const fu = el.querySelector(`#fu-${CSS.escape(c.id)}`), ty = el.querySelector(`#ty-${CSS.escape(c.id)}`), rf = el.querySelector(`#rf-${CSS.escape(c.id)}`);
+  fu.value = c.followup || `Hi ${first}, wanted to follow up on this in case it got buried. I'd still love to find a time to chat if you're free in the next couple of weeks. Hope your week's going well!`;
+  ty.value = c.thankyou || `Thanks again for chatting today, ${first}! What you said about [specific takeaway] stuck with me, especially because I've been thinking about [related question]. I'm going to look into [next step they suggested]. Really enjoyed hearing your perspective, and I'll let you know how it goes!`;
+  rf.value = c.referralAsk || `Hi ${first}, I took a closer look at the ${c.appliedRole || "[Role]"} opening after our chat, and I'm excited about the focus on [specific responsibility]. It connects well with the work I did on [relevant experience]. Would you feel comfortable referring me? I can send over my resume and the posting. If not, no worries at all. I really appreciate the advice you've already shared.`;
+  fu.onchange = () => save(c.id, { followup: fu.value });
+  ty.onchange = () => save(c.id, { thankyou: ty.value });
+  rf.onchange = () => save(c.id, { referralAsk: rf.value });
+  el.querySelector(".copy-fu").onclick = () => copyText(fu.value, fu);
+  el.querySelector(".copy-ty").onclick = () => copyText(ty.value, ty);
+  el.querySelector(".copy-rf").onclick = () => copyText(rf.value, rf);
   const upd = () => { count.textContent = `${note.value.length} / ${NOTE_LIMIT}`; count.classList.toggle("over", note.value.length > NOTE_LIMIT); };
   note.oninput = upd; upd();
   note.onchange = () => save(c.id, { note: note.value });
